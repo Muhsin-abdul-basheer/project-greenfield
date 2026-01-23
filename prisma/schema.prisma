@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  role          String   // "FLEET_ADMIN" | "CREW_MEMBER"
+  createdAt     DateTime @default(now())
+  assignedVessels UserVessel[]
+  reportedIssues  Issue[]  @relation("ReportedBy")
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserVessel {
+  userId   String
+  vesselId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vessel   Vessel @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  @@id([userId, vesselId])
+}
+
+model Vessel {
+  id                 String   @id @default(cuid())
+  name               String
+  imo                String   @unique
+  flag               String
+  type               String
+  status             String   // e.g. "Active", "In Port", "Under Maintenance"
+  lastInspectionDate DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  issues             Issue[]
+  assignedCrew       UserVessel[]
+}
+
+model Issue {
+  id            String   @id @default(cuid())
+  vesselId      String
+  category      String
+  description   String
+  priority      String   // "Low" | "Med" | "High"
+  status        String   // "Open" | "Resolved"
+  recommendation String? // admin can add
+  reportedById  String?  // crew member who reported
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  vessel        Vessel   @relation(fields: [vesselId], references: [id], onDelete: Cascade)
+  reportedBy    User?    @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: SetNull)
+}
