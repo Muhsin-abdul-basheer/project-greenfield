@@ -73,3 +73,68 @@ export async function canAccessVessel(
   });
   return !!uv;
 }
+
+/** Count active vessels assigned to a crew member. */
+export async function countActiveVessels(userId: string): Promise<number> {
+  const count = await prisma.userVessel.count({
+    where: {
+      userId,
+      vessel: { status: "Active" },
+    },
+  });
+  return count;
+}
+
+/** Check if crew member can be assigned more vessels when all are active status (max 3). */
+export async function canAssignMoreVessels(
+  userId: string,
+  newVesselStatus: string
+): Promise<{ allowed: boolean; activeCount: number; message?: string }> {
+  const activeCount = await countActiveVessels(userId);
+  
+  // If the new vessel being assigned is Active status and crew already has 3 active vessels, deny
+  if (newVesselStatus === "Active" && activeCount >= 3) {
+    return {
+      allowed: false,
+      activeCount,
+      message: `Crew member already has 3 active vessels assigned. Cannot assign more active vessels.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    activeCount,
+  };
+}
+
+/** Count open issues reported by a crew member. */
+export async function countOpenIssues(userId: string): Promise<number> {
+  const count = await prisma.issue.count({
+    where: {
+      reportedById: userId,
+      status: "Open",
+    },
+  });
+  return count;
+}
+
+/** Check if crew member can report more issues (max 3 open). */
+export async function canReportMoreIssues(
+  userId: string
+): Promise<{ allowed: boolean; openIssueCount: number; message?: string }> {
+  const openIssueCount = await countOpenIssues(userId);
+  
+  // If crew already has 3 open issues, deny creating a new one
+  if (openIssueCount >= 3) {
+    return {
+      allowed: false,
+      openIssueCount,
+      message: `You already have 3 open issues. Resolve some issues before reporting new ones.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    openIssueCount,
+  };
+}

@@ -208,7 +208,7 @@ export default function AdminPage() {
         </button>
         {scanResult && (
           <div className="card px-4 py-2">
-            <span className="text-emerald-700 font-medium">{scanResult.message}</span>
+            <span className="text-emerald-700 font-medium">Maintenance scan completed.</span>
             {scanResult.vesselsDueForInspection && scanResult.vesselsDueForInspection.length > 0 && (
               <span className="text-amber-700 ml-2">
                 {scanResult.vesselsDueForInspection.length} vessel(s) due for inspection.

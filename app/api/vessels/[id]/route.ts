@@ -120,15 +120,40 @@ export async function PATCH(
           { status: 400 }
         );
       }
+
+      /* ---------- Enforce: each crew max 1 vessel ---------- */
+      for (const crewId of d.assignedCrewIds) {
+        const existingAssignment = await prisma.userVessel.findFirst({
+          where: {
+            userId: crewId,
+            NOT: { vesselId: id }, // allow reassigning same vessel
+          },
+          select: { vesselId: true },
+        });
+
+        if (existingAssignment) {
+          return NextResponse.json(
+            {
+              error: "Crew member already assigned to another vessel",
+              crewId,
+              assignedVesselId: existingAssignment.vesselId,
+              maxAllowed: 1,
+            },
+            { status: 400 }
+          );
+        }
+      }
     }
 
-    /* ---------- Transaction: crew + vessel ---------- */
+    /* ---------- Transaction ---------- */
     const result = await prisma.$transaction(async tx => {
       if (d.assignedCrewIds !== undefined) {
+        // Remove existing crew for this vessel
         await tx.userVessel.deleteMany({
           where: { vesselId: id },
         });
 
+        // Assign new crew
         if (d.assignedCrewIds.length > 0) {
           await tx.userVessel.createMany({
             data: d.assignedCrewIds.map(userId => ({

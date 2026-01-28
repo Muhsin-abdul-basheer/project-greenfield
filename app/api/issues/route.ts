@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireAuth, canAccessVessel } from "@/lib/auth";
+import { requireAuth, canAccessVessel, canReportMoreIssues } from "@/lib/auth";
 
 const createSchema = z.object({
   vesselId: z.string().min(1, "Vessel required"),
@@ -94,6 +94,18 @@ export async function POST(req: NextRequest) {
   const ok = await canAccessVessel(session, parsed.data.vesselId);
   if (!ok) {
     return NextResponse.json({ error: "Forbidden: vessel not assigned" }, { status: 403 });
+  }
+
+  const issueCheckResult = await canReportMoreIssues(session.sub);
+  if (!issueCheckResult.allowed) {
+    return NextResponse.json(
+      {
+        error: issueCheckResult.message,
+        openIssueCount: issueCheckResult.openIssueCount,
+        maxAllowed: 3,
+      },
+      { status: 400 }
+    );
   }
 
   try {
